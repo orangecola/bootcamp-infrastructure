@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  SSHKey:
+    Description: "Name of an existing EC2 Keypair to enable SSH Access to the instance"
+    Default: SGP-KP
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: "Must be the name of an existing EC2 Keypair"
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  Application:
+    Type: String
+    Description: "Name of the application to run on the instance"
+    Default: "xvwa"
+    AllowedValues:
+      - movie
+      - xvwa
+  IPRange:
+    Type: String
+    Description: "IP Whitelist for access to server"
+    Default: "0.0.0.0/0"
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+        VpcId: !Ref VPC
+        InternetGatewayId: !Ref InternetGateway
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.0.0/24
+      AvailabilityZone: ap-southeast-1a
+      MapPublicIpOnLaunch: false
+  PublicRouteTable: 
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable    
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+  LinuxSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "Linux Hosts"
+      GroupDescription: "Linux Security Group"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref IPRange
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: !Ref IPRange
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: !Ref IPRange
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+  WebServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: "t2.micro"
+      KeyName: !Ref SSHKey
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref LinuxSecurityGroup
+          SubnetId: !Ref PublicSubnet
+      UserData:
+        "Fn::Base64":
+          !Sub |
+            #!/bin/bash -x
+            yum install -y docker
+            systemctl daemon-reload
+            systemctl start --no-block docker.service
+            chmod +x /etc/rc.d/rc.local
+            echo "systemctl start docker.service" >> /etc/rc.local
+            if [[ "${Application}" == "xvwa" ]]; then
+              COMMAND="docker run -d -p 80:80 orangecola/bootcamp-xvwa"
+              $COMMAND
+              echo $COMMAND >> /etc/rc.local
+            else
+              curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+              curl -L https://raw.githubusercontent.com/orangecola/bootcamp-infrastructure/master/docker-compose.yml -o docker-compose.yml
+              docker-compose up
+            fi
+Outputs:
+  WindowsHostID:
+    Description: "Instance ID of Web Server"
+    Value: !Ref WebServer

@@ -1,0 +1,27 @@
+service: bootcamp
+
+provider:
+  name: aws
+  runtime: python3.6
+  timeout: 30
+  versionFunctions: false
+  region: ap-southeast-1
+  tags:
+    Project: bootcamp
+package:
+  exclude: 
+functions:
+  bootcamp_Start:
+    handler: main.tcg_handler
+    memorySize: 256
+    environment:
+      client_id: ${ssm:tcgplayer_client_id}
+      client_secret: ${ssm:tcgplayer_client_secret}
+    events:
+      - http:
+          path: /start
+          cors: true
+          method: get
+          request:
+            parameters:
+              querystring: true
