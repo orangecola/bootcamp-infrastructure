@@ -23,7 +23,8 @@ $ npm install serverless
  - Select application and key
  - Start the stack
 
-The stack will have two outputs  
+The stack will have two outputs
+
 | Output | Description |
 | ------ | ------ |
 | WebServerIP | Inital web server IP. If you restart the server, the IP may change. |
