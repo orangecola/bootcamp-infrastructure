@@ -69,6 +69,6 @@ Server does not have a public IP Address. Did you turn on the server with /start
  - Delete the cloudformation stack
  - Teardown the serverless service
  - ```
-    $ sls service 
+    $ sls remove --instance <WebServerID> 
     ```
  
