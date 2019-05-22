@@ -102,15 +102,18 @@ Resources:
             echo "systemctl start docker.service" >> /etc/rc.local
             if [[ "${Application}" == "xvwa" ]]; then
               COMMAND="docker run -d -p 80:80 orangecola/bootcamp-xvwa"
-              $COMMAND
-              echo $COMMAND >> /etc/rc.local
             else
-              curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
-              chmod +x /usr/local/bin/docker-compose
-              curl -L https://raw.githubusercontent.com/orangecola/bootcamp-infrastructure/master/docker-compose.yml -o docker-compose.yml
-              docker-compose up
+              curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-`uname -s`-`uname -m` -o /bin/docker-compose
+              chmod +x /bin/docker-compose
+              curl -L https://raw.githubusercontent.com/orangecola/bootcamp-infrastructure/master/docker-compose.yml -o /root/docker-compose.yml
+              COMMAND="docker-compose -f /root/docker-compose.yml up"
             fi
+            $COMMAND
+            echo $COMMAND >> /etc/rc.local
 Outputs:
-  WindowsHostID:
+  WebServerID:
     Description: "Instance ID of Web Server"
     Value: !Ref WebServer
+  WebServerIP:
+    Description: "IP of web server"
+    Value: !GetAtt WebServer.PublicIp

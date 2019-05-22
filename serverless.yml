@@ -4,24 +4,49 @@ provider:
   name: aws
   runtime: python3.6
   timeout: 30
+  memorySize: 128
   versionFunctions: false
   region: ap-southeast-1
   tags:
     Project: bootcamp
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - ec2:StartInstances
+        - ec2:StopInstances
+      Resource: 
+        - arn:aws:ec2:::instance/${opt:instance}
+    - Effect: Allow
+      Action:
+        - ec2:DescribeInstances
+        - ec2:StartInstances
+        - ec2:StopInstances
+      Resource: 
+        - '*'
 package:
   exclude: 
 functions:
-  bootcamp_Start:
-    handler: main.tcg_handler
-    memorySize: 256
+  start:
+    handler: control.start
     environment:
-      client_id: ${ssm:tcgplayer_client_id}
-      client_secret: ${ssm:tcgplayer_client_secret}
+      instance: ${opt:instance}
     events:
       - http:
           path: /start
-          cors: true
           method: get
-          request:
-            parameters:
-              querystring: true
+  stop:
+    handler: control.stop
+    environment:
+      instance: ${opt:instance}
+    events:
+      - http:
+          path: /stop
+          method: get
+  check:
+    handler: control.check
+    environment:
+      instance: ${opt:instance}
+    events:
+      - http:
+          path: /check
+          method: get
